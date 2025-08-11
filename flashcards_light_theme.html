@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FlashCards ENG-AR — تفاعلية وخفيفة</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --primary: #6366f1; /* indigo-500 */
+    --soft: #eef2ff; /* indigo-50 */
+    --accent: #10b981; /* emerald-500 */
+  }
+  body{ background: var(--bg); }
+  .flip { perspective: 1200px; }
+  .flip-inner { transition: transform .6s; transform-style: preserve-3d; }
+  .flipped .flip-inner{ transform: rotateY(180deg); }
+  .flip-face{ backface-visibility: hidden; }
+  .flip-back{ transform: rotateY(180deg); }
+  .glass{ background: rgba(255,255,255,.8); backdrop-filter: blur(8px); }
+</style>
+</head>
+<body class="text-gray-900">
+<header class="sticky top-0 z-20 glass border-b">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-xl sm:text-2xl font-extrabold">🎓 بطاقات إنجليزي — خفيفة وممتعة</h1>
+      <p class="text-xs text-gray-600">أضف كلماتك من الملف أو استخدم العيّنة. وضع بطاقات + اختبار + مراجعة ذكية.</p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btnExport" class="px-3 py-2 rounded-xl bg-emerald-500 text-white">تصدير CSV</button>
+      <a id="btnTemplate" class="px-3 py-2 rounded-xl bg-indigo-500 text-white" href="#" download>قالب CSV</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+  <section class="grid lg:grid-cols-4 gap-6">
+    <aside class="space-y-4 lg:col-span-1">
+      <div class="p-4 rounded-2xl shadow bg-white">
+        <h2 class="font-semibold mb-2">تحميل البيانات</h2>
+        <input id="file" type="file" accept=".csv,.json" class="w-full text-sm"/>
+        <button id="useSample" class="mt-2 w-full px-3 py-2 rounded-xl bg-gray-900 text-white">استخدم عيّنة سريعة</button>
+        <a id="downloadPdf" class="block mt-2 text-sm text-indigo-600 underline" href="#" download>تحميل ملف الكلمات (PDF)</a>
+      </div>
+
+      <div class="p-4 rounded-2xl shadow bg-white space-y-3">
+        <h2 class="font-semibold">التصفية</h2>
+        <input id="q" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="ابحث...">
+        <div id="cats" class="flex flex-wrap gap-2 pt-1"></div>
+      </div>
+
+      <div class="p-4 rounded-2xl shadow bg-white space-y-3">
+        <h2 class="font-semibold">الوضع</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="mCards" class="px-3 py-2 rounded-xl bg-indigo-600 text-white">بطاقات</button>
+          <button id="mQuiz" class="px-3 py-2 rounded-xl bg-gray-200">اختبار</button>
+        </div>
+        <label class="flex items-center gap-2 text-sm">
+          <input id="tts" type="checkbox" checked> <span>نطق إنجليزي</span>
+        </label>
+      </div>
+
+      <div class="p-4 rounded-2xl shadow bg-white text-sm text-gray-700">
+        <h2 class="font-semibold mb-1">كيف أستخدمه بسرعة؟</h2>
+        <ul class="list-disc pr-5 space-y-1">
+          <li>حمّل CSV من كتيّبك (الأعمدة: category, word, translation, plural, pos, example_en, example_ar).</li>
+          <li>اختر القسم، اقلب البطاقات، واعلّم ما أتقنته.</li>
+          <li>جرّب الاختبار والـ SR لتكرار الصعب.</li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="lg:col-span-3 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-sm text-gray-600">المجموع: <span id="nAll">0</span> • المعروض: <span id="nShown">0</span> • تقدّمك: <span id="prog">0</span>%</div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">مفضّلة: <span id="favCount">0</span></span>
+          <button id="shuffle" class="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700">خلط</button>
+        </div>
+      </div>
+
+      <div id="cards" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+
+      <div id="quiz" class="hidden p-4 rounded-2xl bg-white shadow">
+        <div class="text-lg font-semibold mb-3" id="qText"></div>
+        <div id="qOpts" class="grid gap-2"></div>
+        <div class="mt-3 text-sm" id="qFeedback"></div>
+        <div class="mt-4 flex gap-2">
+          <button id="qNext" class="px-4 py-2 rounded-xl bg-indigo-600 text-white">التالي</button>
+          <button id="qSR" class="px-4 py-2 rounded-xl bg-emerald-600 text-white" title="Again/Good/Easy">مراجعة ذكية</button>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-gray-500">
+  ألوان فاتحة ومريحة. يدعم CSV/JSON. جرّب وقل لي إذا تبغى نعدل الشكل أكثر.
+</footer>
+
+<script>
+let DATA=[], FILTER={q:"",cat:"الكل"}, MODE="cards";
+let mastered=new Set(), favorites=new Set();
+let queueSR=[]; // spaced repetition simple queue
+
+const sample = [{"category": "أهم الأفعال", "word": "have", "translation": "يمتلك", "plural": "", "pos": "verb", "example_en": "They have a wonderful car.", "example_ar": "هم يمتلكون سيارة رائعة."}, {"category": "أهم الأفعال", "word": "say", "translation": "يقول", "plural": "", "pos": "verb", "example_en": "He always says the truth.", "example_ar": "هو دائمًا يقول الحقيقة."}, {"category": "أهم الأفعال", "word": "go", "translation": "يذهب", "plural": "", "pos": "verb", "example_en": "The kids go to school by bus.", "example_ar": "الاطفال يذهبون إلى المدرسة بالحافلة."}, {"category": "أهم الأفعال", "word": "know", "translation": "يعرف", "plural": "", "pos": "verb", "example_en": "I know you.", "example_ar": "أنا أعرفك."}, {"category": "أهم الأفعال", "word": "get", "translation": "يحصل على", "plural": "", "pos": "verb", "example_en": "She gets high marks.", "example_ar": "هي تحصل على علامات مرتفعة."}, {"category": "أهم الأفعال", "word": "help", "translation": "يساعد", "plural": "", "pos": "verb", "example_en": "My brother helps me.", "example_ar": "أخي يساعدني."}, {"category": "أهم الأفعال", "word": "meet", "translation": "يقابل", "plural": "", "pos": "verb", "example_en": "They will meet at the cafe.", "example_ar": "سوف يلتقون في المقهى."}, {"category": "أهم الأفعال", "word": "include", "translation": "يتضمن", "plural": "", "pos": "verb", "example_en": "The bill includes taxes.", "example_ar": "الفاتورة تتضمن الضرائب."}, {"category": "أهم الأفعال", "word": "return", "translation": "يرجع", "plural": "", "pos": "verb", "example_en": "He returned after two years.", "example_ar": "لقد رجع بعد عامين."}, {"category": "أهم الأفعال", "word": "decide", "translation": "يقرّر", "plural": "", "pos": "verb", "example_en": "I can't decide what to do.", "example_ar": "لا أستطيع أن أقرر ماذا أفعل."}, {"category": "أهم الصفات", "word": "good", "translation": "جيّد", "plural": "", "pos": "adjective", "example_en": "This is a good idea.", "example_ar": "هذه فكرة جيدة."}, {"category": "أهم الصفات", "word": "first", "translation": "أول", "plural": "", "pos": "adjective", "example_en": "This is my first visit.", "example_ar": "هذه زيارتي الأولى."}, {"category": "أهم الصفات", "word": "high", "translation": "عالٍ", "plural": "", "pos": "adjective", "example_en": "The building is very high.", "example_ar": "هذا المبنى عالٍ جدًا."}, {"category": "أهم الصفات", "word": "different", "translation": "مختلف", "plural": "", "pos": "adjective", "example_en": "He looks different.", "example_ar": "هو يبدو مختلفًا."}, {"category": "أهم الصفات", "word": "easy", "translation": "سهل", "plural": "", "pos": "adjective", "example_en": "This exercise is easy.", "example_ar": "هذا التمرين سهل."}, {"category": "أهم الأسماء", "word": "people", "translation": "أشخاص", "plural": "", "pos": "noun", "example_en": "I see a lot of people.", "example_ar": "أرى الكثير من الأشخاص."}, {"category": "أهم الأسماء", "word": "year", "translation": "عام", "plural": "years", "pos": "noun", "example_en": "The year ends soon.", "example_ar": "سينتهي العام قريبًا."}, {"category": "أهم الأسماء", "word": "business", "translation": "العمل", "plural": "", "pos": "noun", "example_en": "I want to start my business.", "example_ar": "أريد أن أبدأ عملي."}, {"category": "أهم الأسماء", "word": "child", "translation": "طفل", "plural": "children", "pos": "noun", "example_en": "He is a cute child.", "example_ar": "هو طفل لطيف."}, {"category": "أهم الأسماء", "word": "book", "translation": "كتاب", "plural": "books", "pos": "noun", "example_en": "I borrowed a book.", "example_ar": "استعرت كتابًا."}];
+
+function uniq(a){return [...new Set(a)]}
+function speak(t){ try{ if(!document.getElementById('tts').checked) return; const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+function el(tag,cls,txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
+
+function render(){
+  const q = FILTER.q.toLowerCase();
+  const items = DATA.filter(d=> ((d.word||'').toLowerCase().includes(q) || (d.translation||'').includes(FILTER.q)) && (FILTER.cat==='الكل' || (d.category||'عام')===FILTER.cat) );
+
+  document.getElementById('nAll').textContent = DATA.length;
+  document.getElementById('nShown').textContent = items.length;
+  document.getElementById('prog').textContent = DATA.length? Math.round((mastered.size/DATA.length)*100):0;
+  document.getElementById('favCount').textContent = favorites.size;
+
+  // cats
+  const cats=["الكل", ...uniq(DATA.map(d=>d.category||"عام"))];
+  const catsWrap=document.getElementById('cats'); catsWrap.innerHTML="";
+  cats.forEach(c=>{
+    const b=el('button',"px-3 py-1 rounded-full text-sm border "+(c===FILTER.cat?"bg-gray-900 text-white":"bg-gray-100"));
+    b.textContent=c; b.onclick=()=>{FILTER.cat=c; render();}; catsWrap.appendChild(b);
+  });
+
+  // mode
+  document.getElementById('cards').classList.toggle('hidden', MODE!=='cards');
+  document.getElementById('quiz').classList.toggle('hidden', MODE!=='quiz');
+  document.getElementById('mCards').className="px-3 py-2 rounded-xl "+(MODE==='cards'?"bg-indigo-600 text-white":"bg-gray-200");
+  document.getElementById('mQuiz').className="px-3 py-2 rounded-xl "+(MODE==='quiz'?"bg-indigo-600 text-white":"bg-gray-200");
+
+  if(MODE==='cards'){
+    const wrap=document.getElementById('cards'); wrap.innerHTML="";
+    items.forEach(it=>{
+      const card=el('div',"flip rounded-2xl shadow bg-white p-0");
+      const inner=el('div',"flip-inner p-4 rounded-2xl"); card.appendChild(inner);
+
+      const front=el('div',"flip-face");
+      const head=el('div',"flex items-center justify-between mb-2");
+      head.appendChild(el('span',"text-xs px-2 py-1 rounded-full bg-indigo-50 text-indigo-700", it.category||"عام"));
+      head.appendChild(el('span',"text-xs text-gray-500", it.pos||""));
+      front.appendChild(head);
+      front.appendChild(el('div',"text-2xl font-extrabold mb-4", it.word||""));
+
+      const actions=el('div',"flex gap-2");
+      const b1=el('button',"px-3 py-2 rounded-xl bg-gray-900 text-white","🔊");
+      b1.onclick=(e)=>{e.stopPropagation(); speak(it.word);};
+      const b2=el('button',"px-3 py-2 rounded-xl "+(mastered.has(it.word)?"bg-emerald-500 text-white":"bg-emerald-100 text-emerald-800"), mastered.has(it.word)?"متقَن":"أتقنته");
+      b2.onclick=(e)=>{e.stopPropagation(); if(mastered.has(it.word)) mastered.delete(it.word); else mastered.add(it.word); render();};
+      const b3=el('button',"px-3 py-2 rounded-xl "+(favorites.has(it.word)?"bg-pink-500 text-white":"bg-pink-100 text-pink-800"), "❤️");
+      b3.onclick=(e)=>{e.stopPropagation(); if(favorites.has(it.word)) favorites.delete(it.word); else favorites.add(it.word); render();};
+      actions.appendChild(b1); actions.appendChild(b2); actions.appendChild(b3);
+      front.appendChild(actions);
+
+      const back=el('div',"flip-face flip-back absolute inset-0 p-4 bg-white rounded-2xl");
+      back.appendChild(el('div',"text-lg font-semibold mb-2", it.translation||""));
+      if(it.plural) back.appendChild(el('div',"text-sm text-gray-600 mb-2","الجمع: "+it.plural));
+      if(it.example_en) back.appendChild(el('div',"text-sm text-gray-700 mb-1","EN: "+it.example_en));
+      if(it.example_ar) back.appendChild(el('div',"text-sm text-gray-700","AR: "+it.example_ar));
+
+      inner.appendChild(front); inner.appendChild(back);
+      card.addEventListener('click', (e)=>{ if(e.target.closest('button')) return; card.classList.toggle('flipped'); });
+      wrap.appendChild(card);
+    });
+  } else {
+    startQuiz(items);
+  }
+}
+
+function startQuiz(pool){
+  const qEl=document.getElementById('qText'), opts=document.getElementById('qOpts'), fb=document.getElementById('qFeedback');
+  if(pool.length<2){ qEl.textContent="أضف بيانات أكثر."; opts.innerHTML=""; return; }
+  const idx=Math.floor(Math.random()*pool.length), correct=pool[idx];
+  qEl.textContent=`ما ترجمة: "${correct.word}"؟`;
+  const choices=[correct.translation]; while(choices.length<4 && choices.length<pool.length){ const r=pool[Math.floor(Math.random()*pool.length)].translation; if(!choices.includes(r)) choices.push(r); }
+  choices.sort(()=>Math.random()-0.5);
+  opts.innerHTML=""; fb.textContent="";
+  choices.forEach(ch=>{
+    const b=el('button',"px-3 py-2 rounded-xl border hover:bg-gray-100 text-right", ch);
+    b.onclick=()=>{
+      if(ch===correct.translation){ fb.textContent="✅ صحيح"; mastered.add(correct.word); }
+      else{ fb.textContent="❌ خطأ. الصحيح: "+correct.translation; queueSR.push(correct); }
+      document.getElementById('prog').textContent = Math.round((mastered.size/DATA.length)*100);
+    };
+    opts.appendChild(b);
+  });
+  document.getElementById('qNext').onclick=()=>startQuiz(pool);
+  document.getElementById('qSR').onclick=()=>{
+    if(queueSR.length===0){ fb.textContent="لا يوجد صعب للمراجعة الآن."; return; }
+    const it=queueSR.shift(); pool=[it, ...pool.filter(x=>x!==it)]; startQuiz(pool);
+  };
+}
+
+// CSV helpers
+function toCSV(rows){
+  const head=["category","word","translation","plural","pos","example_en","example_ar"];
+  const escape = v => String(v==null?"":v).replaceAll('"','""');
+  const lines=[head.join(",")];
+  rows.forEach(r=>lines.push(head.map(k=>`"${escape(r[k])}"`).join(",")));
+  return lines.join("\n");
+}
+
+function parseCSV(text){
+  // very simple CSV (assumes no commas inside quotes for most rows)
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  const head=lines[0].split(",");
+  const idx={}; head.forEach((h,i)=>idx[h.trim()]=i);
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const cols = lines[i].match(/("([^"]|"")*"|[^,]+)/g) || [];
+    const val = k => (cols[idx[k]]||"").replaceAll(/^"|"$/g,"").replaceAll('""','"');
+    rows.push({category:val("category")||"عام", word:val("word"), translation:val("translation"), plural:val("plural"), pos:val("pos"), example_en:val("example_en"), example_ar:val("example_ar")});
+  }
+  return rows;
+}
+
+// Events
+document.getElementById('useSample').onclick=()=>{ DATA = sample.slice(); mastered.clear(); favorites.clear(); render(); };
+document.getElementById('file').addEventListener('change', async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const t=await f.text();
+  DATA = f.name.endsWith('.json') ? JSON.parse(t) : parseCSV(t);
+  mastered.clear(); favorites.clear(); render();
+});
+document.getElementById('q').addEventListener('input', e=>{ FILTER.q=e.target.value; render(); });
+document.getElementById('mCards').onclick=()=>{ MODE='cards'; render(); };
+document.getElementById('mQuiz').onclick=()=>{ MODE='quiz'; render(); };
+document.getElementById('shuffle').onclick=()=>{ DATA.sort(()=>Math.random()-0.5); render(); };
+document.getElementById('btnExport').onclick=()=>{
+  const csv = toCSV(DATA);
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download="deck.csv"; a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById('btnTemplate').onclick=(e)=>{
+  e.preventDefault();
+  const head="category,word,translation,plural,pos,example_en,example_ar\n";
+  const csv=head; // empty template
+  const blob=new Blob([csv], {type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download="template.csv"; a.click(); URL.revokeObjectURL(url);
+};
+document.getElementById('downloadPdf').onclick=(e)=>{ alert("حمّل الـPDF من رابط الدردشة في الأعلى."); };
+
+// init
+DATA = sample.slice();
+render();
+</script>
+</body>
+</html>
